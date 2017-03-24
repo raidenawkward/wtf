@@ -40,6 +40,8 @@ class Wtf:
 
         content = None
 
+        if os.path.exists(dirname) is False:
+            os.makedirs(dirname)
 
         try:
             rfp = urllib.request.urlopen(url)
@@ -65,6 +67,10 @@ class Wtf:
 
         try:
             shutil.copyfile(oldpath, oldpath + '.old')
+        except FileNotFoundError:
+            pass
+
+        try:
             shutil.move(newpath, oldpath)
         except:
             return False
