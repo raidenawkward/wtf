@@ -38,7 +38,8 @@ class WtfServer:
             self._db.execute(sql)
 
         sql = 'insert into valuesofkey (key, value, tag, createdby) values (\'%s\', \'%s\', \'%s\', \'%s\');' % (key, value, tag, createdby)
-        self._db.execute(sql)
+        res = self._db.execute(sql)
+        return res
 
     def delete(self, key):
         if key is None:

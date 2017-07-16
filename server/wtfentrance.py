@@ -6,7 +6,7 @@ import wtf.server.wtfserver
 import wtf.server.database
 
 import flask
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 
 app = Flask(__name__)
@@ -15,7 +15,23 @@ app = Flask(__name__)
 def queryall():
     server = wtf.server.wtfserver.WtfServer()
     res = server.queryAll()
-    return str(res)
+    err = 0
+    if res is None:
+        err = -1
+    return jsonify(err=err, count=len(res), data=res)
+
+@app.route('/retrieve')
+def query():
+    key = request.args.get('key', '', type=str)
+    if key is '':
+        return 'must have a key'
+
+    server = wtf.server.wtfserver.WtfServer()
+    res = server.query(key)
+    err = 0
+    if res is None:
+        err = -1
+    return jsonify(err=err, data=res)
 
 @app.route('/add')
 def add():
@@ -28,8 +44,8 @@ def add():
     createdby = request.args.get('createdby', '', type=str)
 
     server = wtf.server.wtfserver.WtfServer()
-    res = server.add(key, value, tag, createdby)
-    return str(res)
+    server.add(key, value, tag, createdby)
+    return jsonify(err=0)
 
 @app.route('/delete')
 def delete():
@@ -38,6 +54,6 @@ def delete():
         return 'must have a key'
 
     server = wtf.server.wtfserver.WtfServer()
-    res = server.delete(key)
-    return str(res)
+    server.delete(key)
+    return jsonify(err=0)
 

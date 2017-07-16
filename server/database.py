@@ -32,19 +32,23 @@ class WtfDatabase:
         res = cur.fetchall()
         db.commit()
         self.closedb()
-        return res
+        return len(res)
 
     def query(self, sql):
         print('querying: ' + sql)
 
         db = self.opendb()
         cur = db.execute(sql)
-        res = cur.fetchall()
+        res = WtfDatabase.cursorToArray(cur)
         db.commit()
         self.closedb()
         return res
 
-
+    def cursorToArray(cursor):
+        records = cursor.fetchall()
+        field = [i[0] for i in cursor.description]
+        records2 = [dict(zip(field,i)) for i in records]
+        return records2
 
 
 
