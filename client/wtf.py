@@ -2,37 +2,39 @@
 # by tome.huang@samsung.com
 
 import sys
+import wtfserverrequester
 
 
 class Wtf:
     import os
 
-    VERSION = '1.01'
+    WTF_IDENTITY = '201707162123'
+    VERSION = '2.01'
     DATABASE_NAME = 'wtfdict'
+    SERVER_URL = 'http://35.162.208.187:1235/'
     SYNC_URL = 'http://35.162.208.187/wtf/wtfdict'
     HOME_DIR = os.path.expanduser('~/.wtf')
 
 
-    def __init__(self):
+    def __init__(self, serverurl=SERVER_URL):
+        self._requester = wtfserverrequester.WtfServerRequester(serverurl=serverurl)
         self._dict = {}
-        self._dict['version'] = Wtf.VERSION
-        self._dict['database'] = {}
         self.load()
 
     def getDict(self):
         return self._dict
 
     def getWtfDict(self):
-        return self.getDict()['database']
+        return self.getDict()
 
     def getVersion(self):
         return Wtf.VERSION
 
     def getDatabaseVersion(self):
-        return self.getDict()['version']
+        return ''
 
     def fetch(self, url=SYNC_URL, dirname=HOME_DIR, filename=DATABASE_NAME):
-        import urllib, urllib.request, os, shutil
+        import urllib, urllib.request, os, shutil, json
 
         newfilename = filename + '.new'
         oldpath = os.path.join(dirname, filename)
@@ -43,16 +45,12 @@ class Wtf:
         if os.path.exists(dirname) is False:
             os.makedirs(dirname)
 
-        try:
-            rfp = urllib.request.urlopen(url)
-            if rfp is None:
-                return False
-            content = rfp.read()
-            rfp.close()
-        except:
-            return False
+        content = self._requester.fetchAll()
 
         if content is None:
+            return False
+
+        if content['err'] != 0:
             return False
 
         try:
@@ -60,9 +58,11 @@ class Wtf:
             if wfp is None:
                 return False
 
-            wfp.write(content.decode())
+            json.dump(content['data'], wfp)
+            #wfp.write(str(content['data']))
             wfp.close()
         except:
+            print(e)
             return False
 
         try:
@@ -108,16 +108,22 @@ class Wtf:
         fp.close()
 
 
-    def add(self, key, value):
+    def add(self, key, value, tag='', createdby=WTF_IDENTITY):
         if key is None or value is None:
             return False
 
-        oldvalue = self.getWtfDict().get(key)
-        if oldvalue is not None:
-            return False
-
-        self.getWtfDict()[key] = str(value)
+        d = {}
+        d['key'] = key
+        d['value'] = value
+        d['tag'] = tag
+        d['createdby'] = createdby
+        self.getWtfDict().append(d)
         self.save()
+
+        try:
+            self._requester.add(key, value, tag, createdby)
+        except:
+            print('something wrong occured when uploading it to server')
 
         return True
 
@@ -138,26 +144,32 @@ class Wtf:
         if key is None:
             return False
 
-        try:
-            del self.getWtfDict()[key]
-        except KeyError:
-            return False
+        d = self.getWtfDict()[:]
+        for item in d:
+            if item['key'] == key:
+                self.getWtfDict().remove(item)
 
         self.save()
+
+        try:
+            self._requester.delete(key)
+        except:
+             print('something wrong occured when uploading it to server')
+
         return True
 
 
     def get(self, key):
+        res = []
         if key is None:
             return None
-        d = self.getWtfDict()
+        table = self.getWtfDict()
 
-        try:
-            value = d[key]
-            return value
+        for d in table:
+            if d['key'].upper() == key.upper():
+                res.append(d)
 
-        except:
-            return None
+        return res
 
     def upload(self, url):
         pass
@@ -185,14 +197,21 @@ def version(value=None, args=None):
 
 def add(value, args):
     key = value
-    if len(args) <= 0:
+    arglen = len(args)
+    if arglen <= 0:
         usage()
         return
 
     val = args[0]
+    tag = ''
+    createdby = Wtf.WTF_IDENTITY
+    if arglen > 1:
+        tag = args[1]
+    if arglen > 2:
+        createdby = args[2]
 
     wtf = Wtf()
-    wtf.add(key, val)
+    wtf.add(key, val, tag, createdby)
 
 def delete(value, args):
     key = value
@@ -218,13 +237,27 @@ def get(value, args):
         key = args[0]
 
     wtf = Wtf()
-    value = wtf.get(key)
+    arr = wtf.get(key)
 
-    if value is None:
+    if arr is None:
         print('nothing found for \'' + key + '\'')
     else:
-        print('[' + key + ']')
-        print(value)
+        if len(arr) == 0:
+            print('nothing found for \'' + key + '\'')
+        else:
+            print('[' + key + ']')
+            for d in arr:
+                value = d['value']
+                tag = d['tag']
+                createdby = d['createdby']
+                item = value
+                if tag != '':
+                    item = item + '\ntag: ' + tag
+                if createdby != '':
+                    item = item + '\ncreated by:' + createdby
+
+                item = item + '\n==== '
+                print(item)
 
 def fetch(value, args):
     wtf = Wtf()
@@ -245,7 +278,7 @@ PARAM_LIST = [
     ['v', False, 'version', 'display version', version],
     ['a', True, 'add', 'add new record: wtf -a key value', add],
     ['d', True, 'delete', 'delete value by key: wtf -d key', delete],
-    ['e', True, 'edit', 'edit and restore old record: wtf -e key value', edit],
+    #['e', True, 'edit', 'edit and restore old record: wtf -e key value', edit],
     ['g', True, 'get', 'get record by key: wtf key or wtf -g key', get],
     ['f', False, 'fetch', 'fetch the latest wtf database(network required)', fetch],
 ]
