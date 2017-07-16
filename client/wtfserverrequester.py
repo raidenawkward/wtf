@@ -1,4 +1,5 @@
-import urllib, urllib.request, os, shutil, json
+import urllib, json
+from urllib import parse,request
 
 
 class WtfServerRequester:
@@ -11,7 +12,12 @@ class WtfServerRequester:
     def __init__(self, serverurl=SERVER_URL):
         self._serverurl = serverurl
 
-    def sendRequest(self, url):
+    def sendRequest(self, url, getdict=None):
+        if getdict is not None:
+            gets = parse.urlencode(getdict)
+            url = url + '?' + gets
+
+        #print(url)
         try:
             rfp = urllib.request.urlopen(url)
             if rfp is None:
@@ -34,18 +40,13 @@ class WtfServerRequester:
         if key is None:
             return None
 
-        url = url + '?key=' + key
+        getdict = {}
+        getdict['key'] = key
+        getdict['value'] = value
+        getdict['tag'] = tag
+        getdict['createdby'] = createdby
 
-        if value is not None:
-            url = url + '&value=' + value
-
-        if tag is not None:
-            url = url + '&tag=' + tag
-
-        if createdby is not None:
-            url = url + '&createdby=' + createdby
-
-        return self.sendRequest(url)
+        return self.sendRequest(url, getdict)
 
     def delete(self, key):
         url = self._serverurl + WtfServerRequester.API_DELETE

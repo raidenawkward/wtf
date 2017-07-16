@@ -340,6 +340,34 @@ def appendFromFile(path, spliter=' '):
     fp.close()
 
 
+def convert(olddict):
+    import json
+    fp = open(olddict, 'r')
+    d = json.load(fp)
+    fp.close()
+
+    database = d['database']
+
+    wtf = Wtf()
+
+    keys = database.keys()
+    for key in keys:
+        value = database[key]
+        tag = 'spay'
+        wtf.add(key, value, tag)
+        print('added: ' + key)
+
+def clearAllOnServer():
+    wtf = Wtf()
+    d = wtf.getWtfDict()
+    keys = []
+    for item in d:
+        keys.append(item['key'])
+
+    for key in keys:
+        wtf.remove(key)
+        print('removed: ' + key)
+
 
 def main(argv):
     import getopt
@@ -370,3 +398,5 @@ if __name__ == '__main__':
     main(sys.argv[1:])
     #path = 'C:\\Users\\Administrator\\Desktop\\attrs.txt'
     #appendFromFile(path)
+    #convert('E:/workspace/github/wtfdict')
+    #clearAllOnServer()
