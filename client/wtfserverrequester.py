@@ -9,13 +9,35 @@ class WtfServerRequester:
     API_ADD = 'add'
     API_DELETE = 'delete'
 
-    def __init__(self, serverurl=SERVER_URL):
+    def __init__(self, serverurl=SERVER_URL, proxy=None):
         self._serverurl = serverurl
+        self._proxy = proxy
+
+    def getServerUrl(self):
+        return self._serverurl
+
+    def setServerUrl(self, serverurl):
+        self._serverurl = serverurl
+
+    def getProxy(self):
+        return self._proxy
+
+    def setProxy(self, proxy):
+        self._proxy = proxy
 
     def sendRequest(self, url, getdict=None):
         if getdict is not None:
             gets = parse.urlencode(getdict)
             url = url + '?' + gets
+
+        # handle the already-set proxy
+        proxy = self.getProxy()
+        if proxy is not None:
+            proxy_support = urllib.request.ProxyHandler({'sock5': self.getProxy()})
+            opener = urllib.request.build_opener(proxy_support)
+            urllib.request.install_opener(opener)
+        else:
+            urllib.request.install_opener(None)
 
         #print(url)
         try:

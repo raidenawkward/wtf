@@ -9,17 +9,31 @@ class Wtf:
     import os
 
     WTF_IDENTITY = '201707162123'
-    VERSION = '2.01'
+    VERSION = '2.02'
     DATABASE_NAME = 'wtfdict'
-    SERVER_URL = 'http://35.162.208.187:1235/'
+    SETTINGS_NAME = 'wtfsettings'
+    SERVER_URL = 'http://34.213.135.66:1235/'
     SYNC_URL = 'http://35.162.208.187/wtf/wtfdict'
     HOME_DIR = os.path.expanduser('~/.wtf')
 
+    KEY_SETTINGS_PROXY = 'settings.proxy'
+    KEY_SETTINGS_SERVER_URL = 'settings.server.url'
 
-    def __init__(self, serverurl=SERVER_URL):
-        self._requester = wtfserverrequester.WtfServerRequester(serverurl=serverurl)
+
+    def __init__(self, serverurl=None):
         self._dict = {}
+        self._settings = {}
+
         self.load()
+
+        serverurl = self.getServerUrl()
+        if serverurl is None:
+            serverurl = Wtf.SERVER_URL
+
+        self._requester = wtfserverrequester.WtfServerRequester(serverurl=serverurl)
+        self._requester.setProxy(self.getProxy())
+
+        self.save()
 
     def getDict(self):
         return self._dict
@@ -32,6 +46,9 @@ class Wtf:
 
     def getDatabaseVersion(self):
         return ''
+
+    def getSettings(self):
+        return self._settings
 
     def fetch(self, url=SYNC_URL, dirname=HOME_DIR, filename=DATABASE_NAME):
         import urllib, urllib.request, os, shutil, json
@@ -78,7 +95,7 @@ class Wtf:
         return self.load()
 
 
-    def load(self, dirname=HOME_DIR, filename=DATABASE_NAME):
+    def loadDict(self, dirname=HOME_DIR, filename=DATABASE_NAME):
         import os, json
 
         path = os.path.join(dirname, filename)
@@ -93,10 +110,34 @@ class Wtf:
             return False
 
         self._dict = newdict
-        
+
         return True
 
-    def save(self, dirname=HOME_DIR, filename=DATABASE_NAME):
+
+    def loadSettings(self, dirname=HOME_DIR, filename=SETTINGS_NAME):
+        import os, json
+
+        path = os.path.join(dirname, filename)
+        if os.path.exists(path) is False:
+            return False
+
+        fp = open(path)
+        newdict = json.load(fp)
+        fp.close()
+
+        if newdict is None:
+            return False
+
+        self._settings = newdict
+
+        return True
+
+    def load(self, dirname=HOME_DIR):
+        resSettings = self.loadSettings(dirname=dirname)
+        resDict = self.loadDict(dirname=dirname)
+        return resDict
+
+    def saveDict(self, dirname=HOME_DIR, filename=DATABASE_NAME):
         import os, json
 
         if os.path.exists(dirname) is False:
@@ -106,6 +147,21 @@ class Wtf:
         fp = open(path, 'w')
         json.dump(self._dict, fp)
         fp.close()
+
+    def saveSettings(self, dirname=HOME_DIR, filename=SETTINGS_NAME):
+        import os, json
+
+        if os.path.exists(dirname) is False:
+            os.makedirs(dirname)
+
+        path = os.path.join(dirname, filename)
+        fp = open(path, 'w')
+        json.dump(self._settings, fp)
+        fp.close()
+
+    def save(self, dirname=HOME_DIR, filename=DATABASE_NAME):
+        self.saveDict(dirname)
+        self.saveSettings(dirname)
 
 
     def add(self, key, value, tag='', createdby=WTF_IDENTITY):
@@ -118,7 +174,7 @@ class Wtf:
         d['tag'] = tag
         d['createdby'] = createdby
         self.getWtfDict().append(d)
-        self.save()
+        self.saveDict()
 
         try:
             self._requester.add(key, value, tag, createdby)
@@ -137,7 +193,7 @@ class Wtf:
 
         self.getWtfDict()[key] = value
 
-        self.save()
+        self.saveDict()
         return True
 
     def remove(self, key):
@@ -149,7 +205,7 @@ class Wtf:
             if item['key'] == key:
                 self.getWtfDict().remove(item)
 
-        self.save()
+        self.saveDict()
 
         try:
             self._requester.delete(key)
@@ -174,7 +230,40 @@ class Wtf:
     def upload(self, url):
         pass
 
+    def setServerUrl(self, serverurl):
+        if self._requester is None:
+            return
 
+        self._requester.setServerUrl(serverurl)
+        self.getSettings()[Wtf.KEY_SETTINGS_SERVER_URL] = serverurl
+
+        self.saveSettings()
+
+    def setSettings(self, key, value):
+        if value is None:
+            try:
+                del self.getSettings()[key]
+            except KeyError:
+                pass
+        else:
+            self.getSettings()[key] = value
+
+        self.saveSettings()
+
+    def getServerUrl(self):
+        return self.getSettings().get(Wtf.KEY_SETTINGS_SERVER_URL)
+
+    def setProxy(self, proxy):
+        if self._requester is None:
+            return
+
+        self._requester.setProxy(proxy)
+        self.getSettings()[Wtf.KEY_SETTINGS_PROXY] = proxy
+
+        self.saveSettings()
+
+    def getProxy(self):
+        return self.getSettings().get(Wtf.KEY_SETTINGS_PROXY)
 
 
 
@@ -183,8 +272,10 @@ def usage(value=None, args=None):
     print('wtf - retrieve the abbrs')
 
     for d in PARAM_LIST:
-        line = '-' + d[0]
-        line = line + ', ' + '--' + d[2]
+        line = ''
+        if d[0] is not None:
+            line = line + '-' + d[0] + ', '
+        line = line + '--' + d[2]
         line = line + '\t\t' + d[3]
         print(line)
 
@@ -259,6 +350,23 @@ def get(value, args):
                 item = item + '\n==== '
                 print(item)
 
+def list_all(value, args):
+    wtf = Wtf()
+    arr = wtf.getDict()
+
+    for d in arr:
+        key = d['key']
+        value = d['value']
+        tag = d['tag']
+        createdby = d['createdby']
+        item = 'key: ' + str(key)
+        item = item + ' value: ' + str(value)
+        if tag != '':
+            item = item + ' tag: ' + tag
+        if createdby != '':
+            item = item + ' created by:' + createdby
+        print(item)
+
 def fetch(value, args):
     wtf = Wtf()
     res = wtf.fetch()
@@ -266,6 +374,51 @@ def fetch(value, args):
         print('fetch succeed')
     else:
         print('fetch failed')
+
+def set_proxy(value, args):
+    key = None
+    if value is not None:
+        key = value
+    else:
+        key = args[0]
+
+    wtf = Wtf()
+
+    wtf.setProxy(key)
+
+    print('save the proxy as \'' + str(key) + '\'')
+
+def set_serverurl(value, args):
+    key = None
+    if value is not None:
+        key = value
+    else:
+        key = args[0]
+
+    wtf = Wtf()
+
+    wtf.setServerUrl(key)
+
+    print('save the serverurl as \'' + str(key) + '\'')
+
+def set_configure(value, args):
+    key = value
+    arglen = len(args)
+    val = None
+
+    if arglen > 0:
+        val = args[0]
+
+    wtf = Wtf()
+    wtf.setSettings(key, val)
+
+def display_configure(value, args):
+    wtf = Wtf()
+    settings = wtf.getSettings()
+    if settings is not None:
+        keys = settings.keys()
+        for key in keys:
+            print('' + str(key) + ' : ' + str(settings.get(key)))
 
 
 
@@ -280,7 +433,12 @@ PARAM_LIST = [
     ['d', True, 'delete', 'delete value by key: wtf -d key', delete],
     #['e', True, 'edit', 'edit and restore old record: wtf -e key value', edit],
     ['g', True, 'get', 'get record by key: wtf key or wtf -g key', get],
+    ['L', False, 'list-all', 'list all restored items', list_all],
     ['f', False, 'fetch', 'fetch the latest wtf database(network required)', fetch],
+    ['P', True, 'proxy', 'set and restore the proxy', set_proxy],
+    ['S', True, 'serverurl', 'set and restore the server url', set_serverurl],
+    [None, True, 'configure', 'set the configure key pairs (key = value). if only given \'key\', value will be unset', set_configure],
+    [None, False, 'config-list', 'list all current configurations', display_configure],
 ]
 
 
@@ -289,7 +447,9 @@ def generateOptParams(paramList=PARAM_LIST):
     longopts = []
 
     for d in paramList:
-        opts = opts + d[0]
+        if d[0] is not None:
+            opts = opts + d[0]
+
         l = d[2]
 
         if d[1] is True:
@@ -305,7 +465,15 @@ def getEntrance(opt, paramList=PARAM_LIST):
         return None, False
 
     for d in paramList:
-        if opt == '-' + d[0] or opt == '--' + d[2]:
+        hit = False
+        if d[0] is None:
+            if opt == '--' + d[2]:
+                hit = True
+        else:
+            if opt == '-' + d[0] or opt == '--' + d[2]:
+                hit = True
+
+        if hit:
             withParam = d[1]
             return d[4], withParam
 
@@ -383,6 +551,7 @@ def main(argv):
             for opt, value in opts:
                 entrance, withParam = getEntrance(opt)
                 if entrance is None:
+                    print('no entrance was found: ' + str(opt))
                     usage()
                     return
 
@@ -391,6 +560,7 @@ def main(argv):
             usage()
 
     except getopt.GetoptError:
+        print('something was wrong when handling inputs')
         usage()
 
 
