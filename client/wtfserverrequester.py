@@ -32,8 +32,10 @@ class WtfServerRequester:
 
         # handle the already-set proxy
         proxy = self.getProxy()
-        if proxy is not None:
-            proxy_support = urllib.request.ProxyHandler({'sock5': self.getProxy()})
+
+        if proxy is not None and len(proxy) > 0:
+            print('using proxy: ' + proxy)
+            proxy_support = urllib.request.ProxyHandler({'http': proxy, 'https': proxy, 'sock4': proxy, 'sock5': proxy})
             opener = urllib.request.build_opener(proxy_support)
             urllib.request.install_opener(opener)
         else:
@@ -46,7 +48,11 @@ class WtfServerRequester:
                 return None
             content = rfp.read()
             rfp.close()
-        except:
+        except urllib.error.HTTPError as e:
+            print('[' + str(e.code) + '] ' + str(e.msg))
+            return None
+        except urllib.error.URLError as e:
+            print('[' + str(e.code) + '] ' + str(e.msg))
             return None
 
         content = json.loads(content.decode())
@@ -87,6 +93,7 @@ class WtfServerRequester:
 
 if __name__ == '__main__':
     requester = WtfServerRequester()
+    requester.setProxy('109.130.240.146:8888')
     #res = requester.add('clientkey', 'clientvalue', 'clienttag')
     #res = requester.delete('clientkey')
     res = requester.retrieve('key1')

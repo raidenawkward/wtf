@@ -18,6 +18,8 @@ class Wtf:
 
     KEY_SETTINGS_PROXY = 'settings.proxy'
     KEY_SETTINGS_SERVER_URL = 'settings.server.url'
+    KEY_SETTINGS_USER_NAME = 'settings.user.name'
+    KEY_SETTINGS_USER_EMAIL = 'settings.user.email'
 
 
     def __init__(self, serverurl=None):
@@ -164,9 +166,12 @@ class Wtf:
         self.saveSettings(dirname)
 
 
-    def add(self, key, value, tag='', createdby=WTF_IDENTITY):
+    def add(self, key, value, tag='', createdby=None):
         if key is None or value is None:
             return False
+
+        if createdby is None:
+            createdby = self.getSettings().get(Wtf.KEY_SETTINGS_USER_NAME)
 
         d = {}
         d['key'] = key
@@ -265,6 +270,12 @@ class Wtf:
     def getProxy(self):
         return self.getSettings().get(Wtf.KEY_SETTINGS_PROXY)
 
+    def setUser(self, user):
+        self.getSettings()[Wtf.KEY_SETTINGS_USER_NAME] = user
+        self.saveSettings()
+
+    def getUser(self):
+        return self.getSettings().get(Wtf.KEY_SETTINGS_USER_NAME)
 
 
 
@@ -273,7 +284,7 @@ def usage(value=None, args=None):
 
     for d in PARAM_LIST:
         line = ''
-        if d[0] is not None:
+        if d[0] is not None and d[0] != '!':
             line = line + '-' + d[0] + ', '
         line = line + '--' + d[2]
         line = line + '\t\t' + d[3]
@@ -410,7 +421,11 @@ def set_configure(value, args):
         val = args[0]
 
     wtf = Wtf()
-    wtf.setSettings(key, val)
+
+    if val is not None:
+        wtf.setSettings(key, val)
+    else:
+        print('' + wtf.getSettings().get(key))
 
 def display_configure(value, args):
     wtf = Wtf()
@@ -420,14 +435,19 @@ def display_configure(value, args):
         for key in keys:
             print('' + str(key) + ' : ' + str(settings.get(key)))
 
+def set_user(value, args):
+    wtf = Wtf()
+    wtf.setUser(value)
 
+def show_user(value, args):
+    wtf = Wtf()
+    print('' + wtf.getUser())
 
 
 '''
     [opt, contains_param, longopt, explain, entrance]
 '''
 PARAM_LIST = [
-    ['h', False, 'help', 'display help information', usage],
     ['v', False, 'version', 'display version', version],
     ['a', True, 'add', 'add new record: wtf -a key value', add],
     ['d', True, 'delete', 'delete value by key: wtf -d key', delete],
@@ -437,8 +457,11 @@ PARAM_LIST = [
     ['f', False, 'fetch', 'fetch the latest wtf database(network required)', fetch],
     ['P', True, 'proxy', 'set and restore the proxy', set_proxy],
     ['S', True, 'serverurl', 'set and restore the server url', set_serverurl],
-    [None, True, 'configure', 'set the configure key pairs (key = value). if only given \'key\', value will be unset', set_configure],
-    [None, False, 'config-list', 'list all current configurations', display_configure],
+    ['u', True, 'set-user', 'set user\'s name', set_user],
+    ['U', False, 'show-user', 'show user\'s name', show_user],
+    ['h', False, 'help', 'display help information', usage],
+    ['!', False, 'config-list', 'list all current configurations', display_configure],
+    ['c', True, 'configure', 'set the configure key pairs (key = value). if only given \'key\', value will be display', set_configure],
 ]
 
 
@@ -466,6 +489,7 @@ def getEntrance(opt, paramList=PARAM_LIST):
 
     for d in paramList:
         hit = False
+
         if d[0] is None:
             if opt == '--' + d[2]:
                 hit = True
@@ -560,12 +584,42 @@ def main(argv):
             usage()
 
     except getopt.GetoptError:
-        print('something was wrong when handling inputs')
         usage()
+
+
+
+
+def update_created_by(user):
+    wtf = Wtf()
+    arr = wtf.getWtfDict()
+    #for d in arr:
+    #    d['createdby'] = user
+    print(arr)
+    wtf.save()
+
+def upload():
+    wtf = Wtf()
+    arr = wtf.getWtfDict()
+
+    total = len(arr)
+    index = 1
+    for d in arr:
+        key = d['key']
+        value = d['value']
+        tag = d['tag']
+        createdby = d['createdby']
+
+        res = wtf._requester.add(key, value, tag, createdby)
+
+        print('(' + str(index) + '/' + str(total) + ') key: ' + str(key) + ', res: ' + str(res))
+
+        index = index + 1
 
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+    #update_created_by('tome')
+    #upload()
     #path = 'C:\\Users\\Administrator\\Desktop\\attrs.txt'
     #appendFromFile(path)
     #convert('E:/workspace/github/wtfdict')
