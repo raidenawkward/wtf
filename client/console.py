@@ -30,7 +30,7 @@ def add(value, args):
 
     val = args[0]
     tag = ''
-    createdby = Wtf.WTF_IDENTITY
+    createdby = None
     if arglen > 1:
         tag = args[1]
     if arglen > 2:
