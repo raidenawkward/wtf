@@ -186,6 +186,48 @@ class Wtf:
 
         return res
 
+    def _mergeDictItem(self, newdict):
+        '''
+        1. not exist, add it
+        2. existed, and totally same with one of the existed item, skip it
+        3. existed, but do not same with any of existed item, add it as a new record
+        '''
+        # print('_mergeDictItem')
+
+        for d in newdict:
+            key = d.get('key')
+            value = d.get('value')
+            tag = d.get('tag')
+            createdby = d.get('createdby')
+
+            if key is None:
+                continue
+
+            existedList = self.get(key)
+            if existedList is None:
+                # print('_mergeDictItem existList is None ' + key)
+                self.add(key=key, value=value, tag=tag, createdby=createdby)
+            else:
+                # print('_mergeDictItem existList is not None ' + key)
+                hit = False
+                for dd in existedList:
+                    ddvalue = dd.get('value')
+                    ddtag = dd.get('tag')
+                    ddcreatedby = dd.get('createdby')
+
+                    if ddvalue == value and ddtag == tag and ddcreatedby == createdby:
+                        hit = True
+                        break
+                    elif ddvalue == value and ddtag == tag:
+                        hit = True
+                        break
+                    else:
+                        continue
+
+                if not hit:
+                    #print('_mergeDictItem not hit: ' + key + ', ' + value)
+                    self.add(key=key, value=value, tag=tag, createdby=createdby)
+
     def importDict(self, path, appendix=True):
         import os, json
 
@@ -202,7 +244,8 @@ class Wtf:
         if appendix is False:
             self._dict = newdict
         else:
-            self.getWtfDict().extend(newdict)
+            # print(self.getWtfDict())
+            self._mergeDictItem(newdict)
 
         self._saveDict()
 
