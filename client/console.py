@@ -33,8 +33,8 @@ def add(value, args):
     createdby = None
     if arglen > 1:
         tag = args[1]
-    if arglen > 2:
-        createdby = args[2]
+    #if arglen > 2:
+    #    createdby = args[2]
 
     wtf = Wtf()
     wtf.add(key, val, tag, createdby)
@@ -147,9 +147,26 @@ def set_configure(value, args):
     wtf = Wtf()
 
     if val is not None:
-        wtf.setSettings(key, val)
+        wtf.setSetting(key, val)
     else:
         print('' + wtf.getSettings().get(key))
+
+def delete_configure(value, args):
+    key = value
+    arglen = len(args)
+    val = None
+
+    if arglen > 0:
+        val = args[0]
+
+    wtf = Wtf()
+
+    if key is not None:
+        res = wtf.deleteSetting(key)
+        if res:
+            print('delete setting ' + key + ' succeed.')
+        else:
+            print('delete setting ' + key + ' failed.')
 
 def display_configure(value, args):
     wtf = Wtf()
@@ -224,7 +241,7 @@ def display_total_count(value, args):
 '''
 PARAM_LIST = [
     ['v', False, 'version', 'display version', version],
-    ['a', True, 'add', 'add new record: wtf -a key value', add],
+    ['a', True, 'add', 'add new record: wtf -a key value [tag1,tag2,..]', add],
     ['d', True, 'delete', 'delete value by key: wtf -d key', delete],
     #['e', True, 'edit', 'edit and restore old record: wtf -e key value', edit],
     ['g', True, 'get', 'get record by key: wtf key or wtf -g key', get],
@@ -240,6 +257,7 @@ PARAM_LIST = [
     ['h', False, 'help', 'display help information', usage],
     ['!', False, 'config-list', 'list all current configurations', display_configure],
     ['!', False, 'count-total', 'display the total count', display_total_count],
+    ['!', True, 'config-delete', 'delete configure key and its value', delete_configure],
     ['c', True, 'configure', 'set the configure key pairs (key = value). if only given \'key\', value will be displayed', set_configure],
 ]
 

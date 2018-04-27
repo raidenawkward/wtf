@@ -9,7 +9,8 @@ class Wtf:
     import os
 
     WTF_IDENTITY = '201707162123'
-    VERSION = '2.02'
+    VERSION = '2.06'
+
     DATABASE_NAME = 'wtfdict'
     SETTINGS_NAME = 'wtfsettings'
     SERVER_URL = 'http://34.213.135.66:1235/'
@@ -98,6 +99,7 @@ class Wtf:
 
 
     def loadDict(self, dirname=HOME_DIR, filename=DATABASE_NAME):
+        # change
         import os, json
 
         path = os.path.join(dirname, filename)
@@ -269,7 +271,8 @@ class Wtf:
         self._saveDict()
 
         try:
-            self._requester.add(key, value, tag, createdby)
+            #self._requester.add(key, value, tag, createdby)
+            pass
         except:
             print('something wrong occured when uploading it to server')
 
@@ -331,7 +334,7 @@ class Wtf:
 
         self._saveSettings()
 
-    def setSettings(self, key, value):
+    def setSetting(self, key, value):
         if value is None:
             try:
                 del self.getSettings()[key]
@@ -341,6 +344,15 @@ class Wtf:
             self.getSettings()[key] = value
 
         self._saveSettings()
+
+    def deleteSetting(self, key):
+        try:
+            del self.getSettings()[key]
+        except KeyError:
+            return False
+
+        self._saveSettings()
+        return True
 
     def getServerUrl(self):
         return self.getSettings().get(Wtf.KEY_SETTINGS_SERVER_URL)
