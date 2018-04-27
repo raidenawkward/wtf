@@ -9,14 +9,20 @@ class WtfRecord:
     FIELD_TAGS = 'tags'
     FIELD_TIMESTAMP = 'timestamp'
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, dictionary=None):
         self._dict = {}
         self._path = path
 
         if path is not None:
             self.loadFromFile(path)
-        else:
-            self.set(WtfRecord.FIELD_ID, self._generateId())
+            return
+
+        self.set(WtfRecord.FIELD_ID, self._generateId())
+        if dictionary is not None:
+            keys = dictionary.keys()
+            keys = sorted(keys)
+            for k in keys:
+                self.set(k, dictionary.get(k))
 
     def _generateId(self):
         stamp = self.getTimeStamp()
@@ -93,6 +99,17 @@ class WtfRecord:
     def sync(self):
         return self.saveToFile(self.getPath())
 
+    def load(self, wtfrecord):
+        if wtfrecord is None:
+            return
+
+        newdict = wtfrecord.getDict().copy()
+        keys = newdict.keys()
+        for k in keys:
+            if k == WtfRecord.FIELD_ID or k == WtfRecord.FIELD_ID:
+                continue
+            self.set(k, newdict.get(k))
+
     def getPath(self):
         return self._path
 
@@ -115,7 +132,7 @@ class WtfRecord:
         return self.getDict().get(key)
 
     def toString(self):
-        content = '[' + str(type(self)) + '] ' + str(self) + '\n'
+        content = '[' + str(type(self)) + ']' + '\n'
         keys = self.getDict().keys()
         keys = sorted(keys)
         for k in keys:
@@ -145,7 +162,13 @@ class WtfSource:
     def syncSource(self):
         pass
 
-    def add(self, wtfrecord, restrict=False):
+    def add(self, wtfrecord=None, restrict=False, dictionary=None):
+        return False
+
+    def remove(self, key, id=None):
+        return False
+
+    def edit(self, key, id, wtfrecord=None, dictionary=None):
         pass
 
     def retrieveByKey(self, key):
@@ -160,6 +183,11 @@ class WtfSource:
     def toString(self):
         return ''
 
+    def getRecordCount(self):
+        return 0
+
+    def getAllRecords(self):
+        return None
 
 
 

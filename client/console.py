@@ -1,6 +1,7 @@
 import sys
 import wtf
 from wtf import Wtf
+from wtfsource import WtfRecord
 
 
 def usage(value=None, args=None):
@@ -28,34 +29,58 @@ def add(value, args):
         usage()
         return
 
+    d = {}
+
     val = args[0]
-    tag = ''
-    createdby = None
+    tags = ''
+    detail = ''
+
     if arglen > 1:
-        tag = args[1]
-    #if arglen > 2:
-    #    createdby = args[2]
+        tags = args[1]
+
+    if arglen > 2:
+        detail = args[2]
+
+    d[WtfRecord.FIELD_VALUE] = val
+    d[WtfRecord.FIELD_DETAIL] = detail
+    d[WtfRecord.FIELD_TAGS] = tags
 
     wtf = Wtf()
-    wtf.add(key, val, tag, createdby)
+    wtf.add(key, d)
 
 def delete(value, args):
     key = value
+    id = None
+    if len(args) > 0:
+        id = args[0]
 
     wtf = Wtf()
-    wtf.remove(key)
+    (res, err) = wtf.remove(key, id)
+    if not res:
+        print(err)
 
 def edit(value, args):
     key = value
-    if len(args) <= 0:
+    if len(args) <= 1:
         usage()
         return
-    val = args[0]
+
+    d = {}
+    d[WtfRecord.FIELD_ID] = args[0]
+    d[WtfRecord.FIELD_VALUE] = args[1]
+
+    if len(args) > 2:
+        d[WtfRecord.FIELD_TAGS] = args[2]
+
+    if len(args) > 3:
+        d[WtfRecord.FIELD_DETAIL] = args[3]
 
     wtf = Wtf()
-    wtf.edit(key, val)
+    (res, err) = wtf.edit(key, d[WtfRecord.FIELD_ID], d)
+    if not res:
+        print(err)
 
-def get(value, args):
+def retrieve(value, args):
     key = None
     if value is not None:
         key = value
@@ -63,7 +88,7 @@ def get(value, args):
         key = args[0]
 
     wtf = Wtf()
-    arr = wtf.get(key)
+    arr = wtf.retrieve(key)
 
     if arr is None:
         print('nothing found for \'' + key + '\'')
@@ -71,36 +96,47 @@ def get(value, args):
         if len(arr) == 0:
             print('nothing found for \'' + key + '\'')
         else:
-            print('[' + key + ']')
-            for d in arr:
-                value = d['value']
-                tag = d['tag']
-                createdby = d['createdby']
-                item = value
-                if tag != '':
-                    item = item + '\ntag: ' + tag
-                if createdby != '':
-                    item = item + '\ncreated by:' + createdby
+            print('result for [' + key + ']')
+            for r in arr:
+                key = r.getKey()
+                value = r.get(WtfRecord.FIELD_VALUE)
+                detail = r.get(WtfRecord.FIELD_DETAIL)
+                tags = r.get(WtfRecord.FIELD_TAGS)
+                user = r.get(WtfRecord.FIELD_USER)
+                id = r.get(WtfRecord.FIELD_ID)
+                stamp = r.get(WtfRecord.FIELD_TIMESTAMP)
 
-                item = item + '\n==== '
+                item = '[' + key + ']'
+                item = item + '\n' + value
+                if detail != '' and detail is not None:
+                    item = item + '\n-----\n' + detail
+                item = item + '\nid: ' + id
+                if tags != '' and tags is not None:
+                    item = item + '\ntags: ' + tags
+                if user != '' and user is not None:
+                    item = item + '\nuser: ' + user
+
+                timestr = None
+                try:
+                    import time
+                    timestr = time.ctime(int(stamp))
+                except:
+                    timestr = None
+
+                if timestr is not None:
+                    item = item + '\nstamp: ' + timestr
+
+                item = item + '\n====='
                 print(item)
 
 def list_all(value, args):
     wtf = Wtf()
-    arr = wtf.getDict()
+    records = wtf.getSource().getAllRecords()
 
-    for d in arr:
-        key = d['key']
-        value = d['value']
-        tag = d['tag']
-        createdby = d['createdby']
-        item = 'key: ' + str(key)
-        item = item + ' value: ' + str(value)
-        if tag != '':
-            item = item + ' tag: ' + tag
-        if createdby != '':
-            item = item + ' created by:' + createdby
-        print(item)
+    for r in records:
+        print(r.toString())
+
+    print('total: ' + str(len(records)))
 
 def fetch(value, args):
     wtf = Wtf()
@@ -191,7 +227,7 @@ def output_dict(value, args):
         return
 
     wtf = Wtf()
-    res = wtf.exportDict(target)
+    res = wtf.getSource().exportSource(target)
 
     if res:
         print('export succeed to ' + target)
@@ -205,11 +241,11 @@ def input_dict(value, args):
 
     path = value
     wtf = Wtf()
-    original_count = len(wtf.getWtfDict())
+    original_count = wtf.getSource().getRecordCount()
+    res = wtf.importSource(path, appendix=True)
 
-    res = wtf.importDict(path, appendix=True)
     if res:
-        new_count = len(wtf.getWtfDict())
+        new_count = wtf.getSource().getRecordCount()
         print('import succeed! ' + str(new_count - original_count) + ' item increased (' + str(new_count) + ') totally now.')
     else:
         print('import failed')
@@ -221,11 +257,11 @@ def input_dict_no_appendix(value, args):
 
     path = value
     wtf = Wtf()
-    original_count = len(wtf.getWtfDict())
+    original_count = wtf.getSource().getRecordCount()
+    res = wtf.importSource(path, appendix=False)
 
-    res = wtf.importDict(path, appendix=False)
     if res:
-        new_count = len(wtf.getWtfDict())
+        new_count = wtf.getSource().getRecordCount()
         print('import succeed! ' + str(new_count - original_count) + ' item increased (' + str(new_count) + ') totally now.')
     else:
         print('import failed')
@@ -241,10 +277,10 @@ def display_total_count(value, args):
 '''
 PARAM_LIST = [
     ['v', False, 'version', 'display version', version],
-    ['a', True, 'add', 'add new record: wtf -a key value [tag1,tag2,..]', add],
-    ['d', True, 'delete', 'delete value by key: wtf -d key', delete],
-    #['e', True, 'edit', 'edit and restore old record: wtf -e key value', edit],
-    ['g', True, 'get', 'get record by key: wtf key or wtf -g key', get],
+    ['a', True, 'add', 'add new record: wtf -a key value [tag1,tag2,..] [detail]', add],
+    ['d', True, 'delete', 'delete value by key: wtf -d key [id]', delete],
+    ['e', True, 'edit', 'edit and restore old record: wtf -e key value [tag1,tag2,..] [detail] [id]', edit],
+    ['r', True, 'retrieve', 'retrieve records by key: wtf key or wtf -r key', retrieve],
     ['L', False, 'list-all', 'list all restored items', list_all],
     ['f', False, 'fetch', 'fetch the latest wtf database(network required)', fetch],
     ['P', True, 'proxy', 'set and restore the proxy', set_proxy],
@@ -366,7 +402,7 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, opts, longopts)
         if len(opts) == 0 and len(args) > 0:
-            get(None, args)
+            retrieve(None, args)
             return
         elif len(opts) > 0:
             for opt, value in opts:

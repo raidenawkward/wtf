@@ -18,8 +18,8 @@ class HashRecord(WtfRecord):
         WtfRecord.FIELD_ID,
         ]
 
-    def __init__(self, path=None):
-        WtfRecord.__init__(self, path)
+    def __init__(self, path=None, dictionary=None):
+        WtfRecord.__init__(self, path, dictionary=dictionary)
 
     def _shouldIgnoredWhenHash(self, key):
         return HashRecord.IGNORED_HASH_FEILDS.count(key) > 0
@@ -101,7 +101,8 @@ class HashSource(WtfSource):
 
         if not allowMerge:
             # DANGER: delete current records
-            os.removedirs(self.getHomeDir())
+            import shutil
+            shutil.rmtree(self.getHomeDir())
             os.makedirs(self.getHomeDir())
 
         try:
@@ -127,7 +128,7 @@ class HashSource(WtfSource):
         except:
             return False
 
-        print('' + str(succeed) + ', ' + str(failed) + ' ' + str(total))
+        # print('' + str(succeed) + ', ' + str(failed) + ' ' + str(total))
         return True
 
     def exportSource(self, path):
@@ -158,7 +159,10 @@ class HashSource(WtfSource):
     def syncSource(self):
         pass
 
-    def add(self, wtfrecord, restrict=False):
+    def add(self, wtfrecord=None, restrict=False, dictionary=None):
+        if dictionary is not None:
+            wtfrecord = HashRecord(dictionary=dictionary)
+
         if wtfrecord is None:
             return False
 
@@ -176,6 +180,63 @@ class HashSource(WtfSource):
         path = os.path.join(dirpath, filename)
 
         return wtfrecord.saveToFile(path)
+
+    def remove(self, key, id=None):
+        if key is None:
+            return False, 'key is None'
+
+        import os
+
+        dirpath = self._genKeyPath(key)
+        if not os.path.isdir(dirpath):
+            return False, 'no record exists'
+
+        for root, dirs, files in os.walk(dirpath):
+            if len(files) > 1:
+                if id is None:
+                    err = 'more than one record for key \'' + key + '\', specify one id of them:'
+                    for f in files:
+                        record = HashRecord(path=os.path.join(root, f))
+                        err = err + '\n' + record.toString()
+                    return False, err
+
+            for f in files:
+                record = HashRecord(path=os.path.join(root, f))
+                if id is not None:
+                    if record.getId() == id:
+                        os.remove(record.getPath())
+                        return True, ''
+                else:
+                    os.remove(record.getPath())
+                    return True, ''
+
+        return False, 'no record was found'
+
+    def edit(self, key, id, wtfrecord=None, dictionary=None):
+        import os
+
+        if id is None or key is None:
+            return False, 'need key and id for editing'
+
+        # print('edit: ' + key + ', ' + id + ', ' + str(dictionary))
+        d = dictionary.copy()
+
+        wtfrecord = HashRecord(dictionary=d)
+        wtfrecord.setKey(key)
+
+        dirpath = self._genKeyPath(key)
+        if not os.path.isdir(dirpath):
+            return False, 'no record exists'
+
+        for root, dirs, files in os.walk(dirpath):
+            for f in files:
+                r = HashRecord(os.path.join(root, f))
+                if r.getId() == wtfrecord.getId():
+                    r.load(wtfrecord)
+                    r.sync()
+                    return True, None
+
+        return False, 'nothing updated'
 
     def retrieveByKey(self, key):
         l = []
@@ -202,6 +263,26 @@ class HashSource(WtfSource):
     def toString(self):
         return str(self)
 
+    def getRecordCount(self):
+        count = 0
+        import os
+
+        for root, dirs, files in os.walk(self.getHomeDir()):
+            for f in files:
+                count = count + 1
+
+        return count
+
+    def getAllRecords(self):
+        l = []
+
+        import os
+
+        for root, dirs, files in os.walk(self.getHomeDir()):
+            for f in files:
+                record = HashRecord(path=os.path.join(root, f))
+                l.append(record)
+        return l
 
 
 

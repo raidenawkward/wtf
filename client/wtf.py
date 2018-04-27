@@ -3,7 +3,8 @@
 
 import sys
 import wtfserverrequester
-
+from wtfsource import WtfRecord, WtfSource
+from hashsource import HashSource
 
 class Wtf:
     import os
@@ -16,6 +17,7 @@ class Wtf:
     SERVER_URL = 'http://34.213.135.66:1235/'
     SYNC_URL = 'http://35.162.208.187/wtf/wtfdict'
     HOME_DIR = os.path.expanduser('~/.wtf')
+    SOURCE_DIR = os.path.join(HOME_DIR, 'hashsource')
 
     KEY_SETTINGS_PROXY = 'settings.proxy'
     KEY_SETTINGS_SERVER_URL = 'settings.server.url'
@@ -26,6 +28,7 @@ class Wtf:
     def __init__(self, serverurl=None):
         self._dict = {}
         self._settings = {}
+        self._source = None
 
         self.load()
 
@@ -43,6 +46,9 @@ class Wtf:
 
     def getWtfDict(self):
         return self.getDict()
+
+    def getSource(self):
+        return self._source
 
     def getVersion(self):
         return Wtf.VERSION
@@ -98,6 +104,7 @@ class Wtf:
         return self.load()
 
 
+    '''
     def loadDict(self, dirname=HOME_DIR, filename=DATABASE_NAME):
         # change
         import os, json
@@ -116,7 +123,7 @@ class Wtf:
         self._dict = newdict
 
         return True
-
+    '''
 
     def loadSettings(self, dirname=HOME_DIR, filename=SETTINGS_NAME):
         import os, json
@@ -137,9 +144,8 @@ class Wtf:
         return True
 
     def load(self, dirname=HOME_DIR):
-        resSettings = self.loadSettings(dirname=dirname)
-        resDict = self.loadDict(dirname=dirname)
-        return resDict
+        self.loadSettings(dirname=dirname)
+        self._source = HashSource(homedir=Wtf.SOURCE_DIR)
 
     def _saveDict(self, dirname=HOME_DIR, filename=DATABASE_NAME):
         '''
@@ -167,7 +173,7 @@ class Wtf:
         fp.close()
 
     def save(self, dirname=HOME_DIR):
-        self._saveDict(dirname)
+        #self._saveDict(dirname)
         self._saveSettings(dirname)
 
     def exportDict(self, targetPath):
@@ -188,137 +194,57 @@ class Wtf:
 
         return res
 
-    def _mergeDictItem(self, newdict):
+    def exportSource(self, path):
+        return self.getSource().exportSource(path)
+
+    def importSource(self, path, appendix=True):
+        return self.getSource().importSource(path=path, allowMerge=appendix)
+
+    def add(self, key, dictionary):
+        if key is None:
+            return False
+
+        if dictionary.get(WtfRecord.FIELD_USER) is None:
+            user = self.getUser()
+
+        d = dictionary.copy()
+        d[WtfRecord.FIELD_KEY] = key
+        d[WtfRecord.FIELD_USER] = user
+
+        return self.getSource().add(dictionary=d, restrict=False)
         '''
-        1. not exist, add it
-        2. existed, and totally same with one of the existed item, skip it
-        3. existed, but do not same with any of existed item, add it as a new record
-        '''
-        # print('_mergeDictItem')
-
-        for d in newdict:
-            key = d.get('key')
-            value = d.get('value')
-            tag = d.get('tag')
-            createdby = d.get('createdby')
-
-            if key is None:
-                continue
-
-            existedList = self.get(key)
-            if existedList is None:
-                # print('_mergeDictItem existList is None ' + key)
-                self.add(key=key, value=value, tag=tag, createdby=createdby)
-            else:
-                # print('_mergeDictItem existList is not None ' + key)
-                hit = False
-                for dd in existedList:
-                    ddvalue = dd.get('value')
-                    ddtag = dd.get('tag')
-                    ddcreatedby = dd.get('createdby')
-
-                    if ddvalue == value and ddtag == tag and ddcreatedby == createdby:
-                        hit = True
-                        break
-                    elif ddvalue == value and ddtag == tag:
-                        hit = True
-                        break
-                    else:
-                        continue
-
-                if not hit:
-                    #print('_mergeDictItem not hit: ' + key + ', ' + value)
-                    self.add(key=key, value=value, tag=tag, createdby=createdby)
-
-    def importDict(self, path, appendix=True):
-        import os, json
-
-        if os.path.exists(path) is False:
-            return False
-
-        fp = open(path)
-        newdict = json.load(fp)
-        fp.close()
-
-        if newdict is None:
-            return False
-
-        if appendix is False:
-            self._dict = newdict
-        else:
-            # print(self.getWtfDict())
-            self._mergeDictItem(newdict)
-
-        self._saveDict()
-
-        return True
-
-
-
-    def add(self, key, value, tag='', createdby=None):
-        if key is None or value is None:
-            return False
-
-        if createdby is None:
-            createdby = self.getSettings().get(Wtf.KEY_SETTINGS_USER_NAME)
-
-        d = {}
-        d['key'] = key
-        d['value'] = value
-        d['tag'] = tag
-        d['createdby'] = createdby
-        self.getWtfDict().append(d)
-        self._saveDict()
-
         try:
-            #self._requester.add(key, value, tag, createdby)
+            self._requester.add(key, value, tag, user)
             pass
         except:
             print('something wrong occured when uploading it to server')
+        '''
 
-        return True
+    def edit(self, key, id, dictionary):
+        d = dictionary.copy()
+        d[WtfRecord.FIELD_USER] = self.getUser()
+        return self.getSource().edit(key, id, dictionary=dictionary)
 
-    def edit(self, key, value):
-        if key is None or value is None:
-            return False
+    def remove(self, key, id=None):
+        return self.getSource().remove(key, id)
 
-        oldvalue = self.getWtfDict().get(key)
-        if oldvalue is None:
-            return False
-
-        self.getWtfDict()[key] = value
-
-        self._saveDict()
-        return True
-
-    def remove(self, key):
-        if key is None:
-            return False
-
-        d = self.getWtfDict()[:]
-        for item in d:
-            if item['key'] == key:
-                self.getWtfDict().remove(item)
-
-        self._saveDict()
-
-        try:
-            self._requester.delete(key)
-        except:
-             print('something wrong occured when uploading it to server')
-
-        return True
-
-
-    def get(self, key):
+    def retrieve(self, key):
         res = []
         if key is None:
-            return None
-        table = self.getWtfDict()
+            return res
 
-        for d in table:
-            if d['key'].upper() == key.upper():
-                res.append(d)
+        res = self.getSource().retrieveByKey(key)
+        res1 = self.getSource().retrieveByKey(key.upper())
+
+        c = res.copy()
+        for r in res1:
+            found = False
+            for r0 in c:
+                if r.getId() == r0.getId():
+                    found = True
+                    break
+            if not found:
+                res.append(r)
 
         return res
 
