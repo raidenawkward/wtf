@@ -44,13 +44,14 @@ class WtfRecord:
         if jb is None:
             return False
 
+        import json
+
         try:
-            import json
-            newdict = json.loads(jb)
+            newdict = json.loads(jb.decode())
 
             if newdict is None:
                 self._dict = {}
-            else:            
+            else:
                 self._dict = newdict
         except:
             return False

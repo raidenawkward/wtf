@@ -118,14 +118,19 @@ class HashSource(WtfSource):
 
                 zcontent = zf.read(filename)
                 record = HashRecord()
-                try:
-                    record.loadFromJsonBytes(zcontent)
-                except:
+
+                if not record.loadFromJsonBytes(zcontent):
                     failed = failed + 1
+                    continue
 
                 if self.add(record):
                     succeed = succeed + 1
+                    continue
+                else:
+                    failed = failed + 1
+                    continue
         except:
+            # print('except occured')
             return False
 
         # print('' + str(succeed) + ', ' + str(failed) + ' ' + str(total))
@@ -167,6 +172,7 @@ class HashSource(WtfSource):
             return False
 
         key = wtfrecord.getKey()
+
         if key is None:
             return False
 
@@ -178,6 +184,7 @@ class HashSource(WtfSource):
             os.makedirs(dirpath)
 
         path = os.path.join(dirpath, filename)
+        # print('save to file: ' + path)
 
         return wtfrecord.saveToFile(path)
 

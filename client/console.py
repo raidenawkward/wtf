@@ -19,7 +19,7 @@ def version(value=None, args=None):
     wtf = Wtf()
 
     content = 'exe version: ' + wtf.getVersion()
-    content = content + '\n' + 'database version: ' + wtf.getDatabaseVersion()
+    # content = content + '\n' + 'database version: ' + wtf.getDatabaseVersion()
     print(content)
 
 def add(value, args):
