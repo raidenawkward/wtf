@@ -10,7 +10,7 @@ class Wtf:
     import os
 
     WTF_IDENTITY = '201707162123'
-    VERSION = '2.10'
+    VERSION = '2.12'
 
     DATABASE_NAME = 'wtfdict'
     SETTINGS_NAME = 'wtfsettings'

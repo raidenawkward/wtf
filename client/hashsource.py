@@ -74,7 +74,7 @@ class HashSource(WtfSource):
     def _genKeyPath(self, key):
         import os
 
-        hashstr = self._getHashHelper().hashString(key)
+        hashstr = self._getHashHelper().hashString(key.upper())
         recorddir = os.path.join(self.getHomeDir(), hashstr)
 
         return recorddir
