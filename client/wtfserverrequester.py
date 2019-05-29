@@ -1,6 +1,4 @@
 import urllib, json
-from urllib import parse,request
-
 
 class WtfServerRequester:
     SERVER_URL = 'http://35.162.208.187:1235/'
@@ -26,6 +24,8 @@ class WtfServerRequester:
         self._proxy = proxy
 
     def sendRequest(self, url, getdict=None):
+        from urllib import request
+        from urllib import parse
         if getdict is not None:
             gets = parse.urlencode(getdict)
             url = url + '?' + gets

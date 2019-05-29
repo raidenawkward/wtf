@@ -1,12 +1,12 @@
 from wtfsource import WtfSource, WtfRecord
 
 class HashHelper:
-    def hashString(self, str):
+    def hashString(self, s):
         import hashlib
-        if str is None:
+        if s is None:
             return None
 
-        hash = hashlib.sha1(str.encode())
+        hash = hashlib.sha1(s.encode())
         return hash.hexdigest()
 
 
